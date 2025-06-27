@@ -1,7 +1,7 @@
 {
-  "name": "homebrew-pvm",
-  "version": "1.0.0",
-  "description": "",
+  "name": "pvm",
+  "version": "1.0.1",
+  "description": "PHP Version Manager",
   "main": "pvm.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
