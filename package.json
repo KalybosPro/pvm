@@ -1,0 +1,15 @@
+{
+  "name": "homebrew-pvm",
+  "version": "1.0.0",
+  "description": "",
+  "main": "pvm.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bin": {
+    "pvm": "./pvm.js"
+    },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
