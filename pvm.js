@@ -13,8 +13,32 @@ const VERSIONS_DIR = path.join(PVM_DIR, 'versions');
 const CONFIG_FILE = '.pvmrc';
 
 function ensurePvmDirs() {
-  if (!fs.existsSync(PVM_DIR)) fs.mkdirSync(PVM_DIR);
-  if (!fs.existsSync(VERSIONS_DIR)) fs.mkdirSync(VERSIONS_DIR);
+  if (!fs.existsSync(PVM_DIR)) fs.mkdirSync(PVM_DIR, { recursive: true });
+  if (!fs.existsSync(VERSIONS_DIR)) fs.mkdirSync(VERSIONS_DIR, { recursive: true });
+}
+
+function getCpuCount() {
+  try {
+    if (process.platform === 'darwin') {
+      return execSync('sysctl -n hw.ncpu').toString().trim();
+    } else {
+      return execSync('nproc').toString().trim();
+    }
+  } catch {
+    return '1';
+  }
+}
+
+function checkDependencies() {
+  const deps = ['curl', 'make', 'gcc', 'autoconf'];
+  for (const dep of deps) {
+    try {
+      execSync(`command -v ${dep}`);
+    } catch {
+      console.error(`❌ Missing dependency: ${dep}. Please install it first.`);
+      process.exit(1);
+    }
+  }
 }
 
 function install(version) {
@@ -27,6 +51,8 @@ function install(version) {
 
 function installUnix(version) {
   ensurePvmDirs();
+  checkDependencies();
+
   const versionDir = path.join(VERSIONS_DIR, version);
   if (fs.existsSync(versionDir)) {
     console.log(`✅ PHP ${version} is already installed.`);
@@ -36,42 +62,53 @@ function installUnix(version) {
   const url = `https://www.php.net/distributions/php-${version}.tar.gz`;
   console.log(`⬇️ Downloading PHP ${version} sources from ${url}`);
 
-  // Use system temp dir instead of current project
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), `php-${version}-`));
-  process.chdir(tmpDir);
+  const initialDir = process.cwd();
 
   try {
+    process.chdir(tmpDir);
     execSync(`curl -L ${url} -o php-${version}.tar.gz`, { stdio: 'inherit' });
     execSync(`tar -xzf php-${version}.tar.gz`, { stdio: 'inherit' });
     process.chdir(`php-${version}`);
 
     console.log(`⚙️ Configuring PHP ${version}...`);
 
-    // Detect iconv prefix for macOS Homebrew
     let iconvPrefix = '';
+    let opensslPrefix = '';
+
+    // Detect libiconv via Homebrew
     try {
-      const brewPrefix = execSync('brew --prefix libiconv').toString().trim();
-      iconvPrefix = `--with-iconv=${brewPrefix}`;
+      const brewIconv = execSync('brew --prefix libiconv').toString().trim();
+      iconvPrefix = `--with-iconv=${brewIconv}`;
+      process.env.LDFLAGS = `-L${brewIconv}/lib`;
+      process.env.CPPFLAGS = `-I${brewIconv}/include`;
     } catch {
       console.warn('⚠️ libiconv not found via brew. Please ensure it is installed.');
     }
 
-    execSync(`./configure --prefix=${versionDir} ${iconvPrefix}`, { stdio: 'inherit' });
+    // Detect openssl via Homebrew
+    try {
+      const brewOpenssl = execSync('brew --prefix openssl').toString().trim();
+      opensslPrefix = `--with-openssl=${brewOpenssl}`;
+      process.env.PKG_CONFIG_PATH = `${brewOpenssl}/lib/pkgconfig`;
+    } catch {
+      console.warn('⚠️ openssl not found via brew. Please ensure it is installed.');
+    }
+
+    execSync(`./configure --prefix=${versionDir} ${iconvPrefix} ${opensslPrefix}`, { stdio: 'inherit' });
 
     console.log(`🔨 Compiling PHP ${version}...`);
-    execSync(`make -j$(nproc)`, { stdio: 'inherit' });
+    execSync(`make -j${getCpuCount()}`, { stdio: 'inherit' });
     execSync(`make install`, { stdio: 'inherit' });
 
     console.log(`✅ PHP ${version} installed at ${versionDir}.`);
   } catch (err) {
     console.error(`❌ Failed to install PHP ${version}: ${err.message}`);
   } finally {
-    // Clean up temp files
-    process.chdir(os.homedir()); // avoid deleting while inside
+    process.chdir(initialDir);
     execSync(`rm -rf ${tmpDir}`, { stdio: 'inherit' });
   }
 }
-
 
 function installWindows(version) {
   ensurePvmDirs();
@@ -137,7 +174,7 @@ function current() {
 
 function execCmd(cmdArgs) {
   if (!fs.existsSync(CONFIG_FILE)) {
-    console.error('❌ No .pvmrc file found. Use \"pvm use <version>\" first.');
+    console.error('❌ No .pvmrc file found. Use "pvm use <version>" first.');
     process.exit(1);
   }
   const content = fs.readFileSync(CONFIG_FILE, 'utf-8');
@@ -147,18 +184,16 @@ function execCmd(cmdArgs) {
     process.exit(1);
   }
   const version = match[1];
+  const phpBin = path.join(VERSIONS_DIR, version, 'bin', 'php');
 
-  // MacOS Brew PHP path example
-  const phpBin = `/opt/homebrew/bin/php@${version}`;
   if (!fs.existsSync(phpBin)) {
-    console.error(`❌ PHP binary not found for version ${version}. Please install it via brew: brew install php@${version}`);
+    console.error(`❌ PHP binary not found for version ${version}.`);
     process.exit(1);
   }
 
   const result = spawnSync(phpBin, cmdArgs, { stdio: 'inherit' });
   process.exit(result.status);
 }
-
 
 function listVersions() {
   ensurePvmDirs();
@@ -189,7 +224,6 @@ function uninstall(version) {
   }
 }
 
-
 function help() {
   console.log(`\n🧰 PVM - PHP Version Manager (like FVM)
 
@@ -203,7 +237,6 @@ Usage:
   pvm help                     Show this help
 `);
 }
-
 
 // CLI Dispatcher
 const [,, cmd, ...args] = process.argv;
