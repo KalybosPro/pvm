@@ -36,26 +36,42 @@ function installUnix(version) {
   const url = `https://www.php.net/distributions/php-${version}.tar.gz`;
   console.log(`⬇️ Downloading PHP ${version} sources from ${url}`);
 
+  // Use system temp dir instead of current project
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), `php-${version}-`));
+  process.chdir(tmpDir);
+
   try {
     execSync(`curl -L ${url} -o php-${version}.tar.gz`, { stdio: 'inherit' });
     execSync(`tar -xzf php-${version}.tar.gz`, { stdio: 'inherit' });
     process.chdir(`php-${version}`);
 
     console.log(`⚙️ Configuring PHP ${version}...`);
-    execSync(`./configure --prefix=${versionDir}`, { stdio: 'inherit' });
+
+    // Detect iconv prefix for macOS Homebrew
+    let iconvPrefix = '';
+    try {
+      const brewPrefix = execSync('brew --prefix libiconv').toString().trim();
+      iconvPrefix = `--with-iconv=${brewPrefix}`;
+    } catch {
+      console.warn('⚠️ libiconv not found via brew. Please ensure it is installed.');
+    }
+
+    execSync(`./configure --prefix=${versionDir} ${iconvPrefix}`, { stdio: 'inherit' });
 
     console.log(`🔨 Compiling PHP ${version}...`);
     execSync(`make -j$(nproc)`, { stdio: 'inherit' });
     execSync(`make install`, { stdio: 'inherit' });
 
-    process.chdir('..');
-    execSync(`rm -rf php-${version} php-${version}.tar.gz`, { stdio: 'inherit' });
-
     console.log(`✅ PHP ${version} installed at ${versionDir}.`);
   } catch (err) {
     console.error(`❌ Failed to install PHP ${version}: ${err.message}`);
+  } finally {
+    // Clean up temp files
+    process.chdir(os.homedir()); // avoid deleting while inside
+    execSync(`rm -rf ${tmpDir}`, { stdio: 'inherit' });
   }
 }
+
 
 function installWindows(version) {
   ensurePvmDirs();
