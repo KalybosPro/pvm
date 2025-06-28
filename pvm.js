@@ -5,6 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync, spawnSync } = require('child_process');
+const os = require('os');
 
 const HOME = process.env.HOME || process.env.USERPROFILE;
 const PVM_DIR = path.join(HOME, '.pvm');
@@ -17,6 +18,14 @@ function ensurePvmDirs() {
 }
 
 function install(version) {
+  if (os.platform() === 'win32') {
+    installWindows(version);
+  } else {
+    installUnix(version);
+  }
+}
+
+function installUnix(version) {
   ensurePvmDirs();
   const versionDir = path.join(VERSIONS_DIR, version);
   if (fs.existsSync(versionDir)) {
@@ -24,12 +33,65 @@ function install(version) {
     return;
   }
 
-  console.log(`⬇️ Installing PHP ${version} (simulated)...`);
-  fs.mkdirSync(versionDir, { recursive: true });
-  const phpPath = path.join(versionDir, 'php');
-  fs.writeFileSync(phpPath, `#!/bin/bash\necho PHP ${version}`);
-  fs.chmodSync(phpPath, 0o755);
-  console.log(`✅ PHP ${version} installed.`);
+  const url = `https://www.php.net/distributions/php-${version}.tar.gz`;
+  console.log(`⬇️ Downloading PHP ${version} sources from ${url}`);
+
+  try {
+    execSync(`curl -L ${url} -o php-${version}.tar.gz`, { stdio: 'inherit' });
+    execSync(`tar -xzf php-${version}.tar.gz`, { stdio: 'inherit' });
+    process.chdir(`php-${version}`);
+
+    console.log(`⚙️ Configuring PHP ${version}...`);
+    execSync(`./configure --prefix=${versionDir}`, { stdio: 'inherit' });
+
+    console.log(`🔨 Compiling PHP ${version}...`);
+    execSync(`make -j$(nproc)`, { stdio: 'inherit' });
+    execSync(`make install`, { stdio: 'inherit' });
+
+    process.chdir('..');
+    execSync(`rm -rf php-${version} php-${version}.tar.gz`, { stdio: 'inherit' });
+
+    console.log(`✅ PHP ${version} installed at ${versionDir}.`);
+  } catch (err) {
+    console.error(`❌ Failed to install PHP ${version}: ${err.message}`);
+  }
+}
+
+function installWindows(version) {
+  ensurePvmDirs();
+  const versionDir = path.join(VERSIONS_DIR, version);
+  if (fs.existsSync(versionDir)) {
+    console.log(`✅ PHP ${version} is already installed.`);
+    return;
+  }
+
+  const url = getWindowsDownloadUrl(version);
+  console.log(`⬇️ Downloading PHP ${version} from ${url}`);
+
+  try {
+    execSync(`curl -L ${url} -o php-${version}.zip`, { stdio: 'inherit' });
+    execSync(`powershell Expand-Archive php-${version}.zip ${versionDir}`, { stdio: 'inherit' });
+    execSync(`del php-${version}.zip`, { stdio: 'inherit' });
+
+    console.log(`✅ PHP ${version} installed at ${versionDir}.`);
+  } catch (err) {
+    console.error(`❌ Failed to install PHP ${version}: ${err.message}`);
+  }
+}
+
+function getWindowsDownloadUrl(version) {
+  console.log(`🔍 Searching for PHP ${version} Windows download URL...`);
+  const page = execSync(`curl -s https://windows.php.net/downloads/releases/archives/`).toString();
+  const regex = new RegExp(`href="(/downloads/releases/archives/php-${version}.*x64.zip)"`);
+  const match = page.match(regex);
+
+  if (match) {
+    const url = `https://windows.php.net${match[1]}`;
+    console.log(`✅ Found: ${url}`);
+    return url;
+  } else {
+    throw new Error(`PHP ${version} not found on windows.php.net`);
+  }
 }
 
 function useVersion(version) {
@@ -59,7 +121,7 @@ function current() {
 
 function execCmd(cmdArgs) {
   if (!fs.existsSync(CONFIG_FILE)) {
-    console.error('❌ No .pvmrc file found. Use "pvm use <version>" first.');
+    console.error('❌ No .pvmrc file found. Use \"pvm use <version>\" first.');
     process.exit(1);
   }
   const content = fs.readFileSync(CONFIG_FILE, 'utf-8');
@@ -69,16 +131,18 @@ function execCmd(cmdArgs) {
     process.exit(1);
   }
   const version = match[1];
-  const phpBin = path.join(VERSIONS_DIR, version, 'php');
 
+  // MacOS Brew PHP path example
+  const phpBin = `/opt/homebrew/bin/php@${version}`;
   if (!fs.existsSync(phpBin)) {
-    console.error(`❌ PHP binary not found for version ${version}.`);
+    console.error(`❌ PHP binary not found for version ${version}. Please install it via brew: brew install php@${version}`);
     process.exit(1);
   }
 
   const result = spawnSync(phpBin, cmdArgs, { stdio: 'inherit' });
   process.exit(result.status);
 }
+
 
 function listVersions() {
   ensurePvmDirs();
@@ -93,11 +157,29 @@ function listVersions() {
   }
 }
 
+function uninstall(version) {
+  const versionDir = path.join(VERSIONS_DIR, version);
+  if (!fs.existsSync(versionDir)) {
+    console.error(`❌ PHP ${version} is not installed.`);
+    process.exit(1);
+  }
+
+  try {
+    fs.rmSync(versionDir, { recursive: true, force: true });
+    console.log(`🗑️ PHP ${version} uninstalled successfully.`);
+  } catch (err) {
+    console.error(`❌ Failed to uninstall PHP ${version}: ${err.message}`);
+    process.exit(1);
+  }
+}
+
+
 function help() {
   console.log(`\n🧰 PVM - PHP Version Manager (like FVM)
 
 Usage:
   pvm install <version>        Install a PHP version
+  pvm uninstall <version>      Uninstall a PHP version
   pvm use <version>            Use a PHP version for this project
   pvm current                  Show current project PHP version
   pvm exec <args...>           Execute a command using current version
@@ -105,6 +187,7 @@ Usage:
   pvm help                     Show this help
 `);
 }
+
 
 // CLI Dispatcher
 const [,, cmd, ...args] = process.argv;
@@ -124,6 +207,9 @@ switch (cmd) {
     break;
   case 'list':
     listVersions();
+    break;
+  case 'uninstall':
+    uninstall(args[0]);
     break;
   case 'help':
   default:
