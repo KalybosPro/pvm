@@ -7,9 +7,9 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "bin": {
-    "pvm": "./pvm.js"
-    },
+    "pvm": "pvm.js"
+  },
   "keywords": [],
-  "author": "",
+  "author": "Kalybos",
   "license": "ISC"
 }
