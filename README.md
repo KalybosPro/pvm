@@ -1,168 +1,88 @@
-# 🐘✨ PVM – PHP Version Manager
+# 🧰 PHP Version Manager (PVM)
 
-Manage multiple PHP versions per project with ease – inspired by FVM for Flutter.
+[![npm version](https://img.shields.io/npm/v/php-version-manager.svg)](https://www.npmjs.com/package/php-version-manager)
+[![Build](https://img.shields.io/github/actions/workflow/status/tonusername/php-version-manager/ci.yml?branch=main)](https://github.com/tonusername/php-version-manager/actions)
+[![License](https://img.shields.io/npm/l/php-version-manager.svg)](LICENSE)
 
-[![GitHub release](https://img.shields.io/github/v/release/KalybosPro/pvm)](https://github.com/KalybosPro/pvm/releases)
-[![MIT License](https://img.shields.io/github/license/KalybosPro/pvm)](LICENSE)
-
----
-
-## 🚀 Features
-
-✅ Simulated PHP version installation
-✅ Use different PHP versions per project via `.pvmrc`
-✅ Execute PHP commands with the selected version (`pvm exec`)
-✅ List installed PHP versions
-✅ Works on **macOS, Linux, and Windows** (via Node.js)
+**PVM** est un gestionnaire de versions PHP (comme nvm pour Node.js ou fvm pour Flutter) écrit en TypeScript.  
+Il te permet d’installer, gérer et utiliser différentes versions de PHP par projet, en utilisant [`php-build`](https://github.com/php-build/php-build).
 
 ---
 
-## 📦 Installation
+## 🚀 **Fonctionnalités**
 
-### 🔧 Prerequisites
-
-* [Node.js](https://nodejs.org) (for CLI runtime)
-* [Homebrew](https://brew.sh) (macOS/Linux)
+✅ Installer n’importe quelle version de PHP via `php-build`  
+✅ Utiliser une version spécifique par projet (`.pvmrc`)  
+✅ Exécuter des scripts PHP avec la version du projet  
+✅ Lister les versions installées  
+✅ Compatible **macOS, Linux et Windows** (mode zip Windows)
 
 ---
 
-### 💻 Install via Homebrew
+## 📦 **Installation**
+
+### 🔷 **Prérequis**
+
+- [php-build](https://github.com/php-build/php-build) installé.
 
 ```bash
-brew tap KalybosPro/pvm
-brew install pvm
+git clone https://github.com/php-build/php-build ~/.php-build
 ```
+
+- `curl`, `make`, `gcc` et outils de compilation PHP installés sur ton système.
 
 ---
 
-### 📝 Alternative: install globally via npm (if published)
+### 🔷 **Via npm (global)**
 
 ```bash
-npm install -g @kalybospro/pvm
+npm install -g @kalybos/pvm
 ```
 
-*(Replace with your actual NPM package name if you publish there.)*
+Cela ajoutera la commande `pvm` globalement.
 
 ---
 
-## ⚡ Usage
-
-### 🔍 View help
+## 📝 **Usage**
 
 ```bash
 pvm help
 ```
 
----
+### 🔧 **Commandes principales**
 
-### 🔧 Install a PHP version
-
-```bash
-pvm install 8.1.0
-```
-
-*This simulates installing PHP 8.1.0 in `~/.pvm/versions/8.1.0`. Extend this function to download and compile real binaries later.*
-
----
-
-### 📌 Set PHP version for a project
-
-```bash
-pvm use 8.1.0
-```
-
-Creates a `.pvmrc` file in your project root specifying the PHP version to use.
+| Commande                        | Description                                       |
+|---------------------------------|---------------------------------------------------|
+| `pvm install <version>`        | Installe une version PHP via `php-build`.         |
+| `pvm uninstall <version>`      | Désinstalle une version PHP.                      |
+| `pvm use <version>`            | Utilise une version PHP pour ce projet.           |
+| `pvm current`                  | Affiche la version PHP actuelle du projet.        |
+| `pvm env`                      | Affiche la commande export PATH pour shell.       |
+| `pvm exec <args...>`           | Exécute une commande PHP avec la version du projet. |
+| `pvm list`                     | Liste les versions PHP installées.                |
+| `pvm help`                     | Affiche cette aide.                              |
 
 ---
 
-### 🔧 Show current project PHP version
+### 💻 **Exemple complet**
 
 ```bash
-pvm current
+pvm install 8.2.20
+pvm use 8.2.20
+eval "$(pvm env)"
+php -v
 ```
 
 ---
 
-### 💻 Execute a PHP command with the selected version
+## 👤 **Auteur**
 
-```bash
-pvm exec php -v
-```
-
-Runs the PHP command using the version specified in `.pvmrc`.
+[Kokou AHIANYO](https://github.com/KalybosPro)
 
 ---
 
-### 📜 List installed PHP versions
+## 📄 **Licence**
 
-```bash
-pvm list
-```
-
----
-
-## 🛠️ Development
-
-### 📥 Clone the repository
-
-```bash
-git clone https://github.com/KalybosPro/pvm.git
-cd pvm
-```
-
-### ▶️ Run locally
-
-```bash
-npm install
-chmod +x pvm.js
-./pvm.js help
-```
-
----
-
-## 🚀 Publishing a new release
-
-1. Update code and increment version in `package.json` if using NPM.
-2. Commit and tag:
-
-```bash
-git add .
-git commit -m "Your message"
-git tag -a vX.Y.Z -m "Release vX.Y.Z"
-git push origin main --tags
-```
-
-3. Create a new release on GitHub attached to the tag.
-
-4. Update `pvm.rb` in [homebrew-pvm](https://github.com/KalybosPro/homebrew-pvm) with:
-
-   * New URL
-   * Updated SHA256
-
-5. Commit and push formula updates.
-
----
-
-## 📝 Contributing
-
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Acknowledgments
-
-Inspired by [FVM](https://fvm.app) for Flutter and existing version managers like [nvm](https://github.com/nvm-sh/nvm) and [phpenv](https://github.com/phpenv/phpenv).
-
----
-
-### ✨ Author
-
-[KalybosPro](https://github.com/KalybosPro)
+Ce projet est sous licence [MIT](LICENSE).
 
 ---
