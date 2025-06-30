@@ -1,6 +1,6 @@
 {
   "name": "@kalybos/pvm",
-  "version": "1.0.1",
+  "version": "0.0.1",
   "description": "PHP Version Manager",
   "main": "dist/index.js",
   "keywords": [
