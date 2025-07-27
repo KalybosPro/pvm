@@ -7,7 +7,7 @@
     "pvm": "dist/cli.js"
   },
   "scripts": {
-    "build": "tsc && npm run build:bundle && npm run build:exe && npm run build:installer",
+    "build": "tsc && npm run build:bundle && npm run build:exe",
     "test": "jest",
     "start": "node dist/cli.js",
     "build:bundle": "npx esbuild dist/cli.js --bundle --platform=node --target=node18 --outfile=dist/pvm.js",
